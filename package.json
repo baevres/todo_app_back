@@ -12,10 +12,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/postgres": "^5.2.2",
+    "@types/node": "^20.10.4",
     "bcrypt": "^5.1.1",
+    "class-validator": "^0.14.0",
     "dotenv": "^16.3.1",
+    "fastify": "^4.24.3",
+    "fastify-typeorm-plugin": "^2.2.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "eslint": "^8.54.0",

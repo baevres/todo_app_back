@@ -2,29 +2,39 @@
 
 This is a straightforward Todo API service that allows you to manage your tasks.
 
+**Updates**
+
+_Stage 2_:
+* added Fastify server
+* added TypeORM
+* added validation
+* updated endpoints
+* updated response data
+* code refactor
+
 **API endpoints**
 
 _tasks_: 
 
 GET:
 
-/api/user/todo{query} - get all tasks, query - checked=bool
+/api/todo{query} - get all tasks, query - checked=bool
 
-/api/user/todo/{id} - get a specific task
+/api/todo/{id} - get a specific task
 
 POST:
 
-/api/user/todo - create a new task
+/api/todo - create a new task
 
 PUT:
 
-/api/user/todo - update a list of tasks
+/api/todo - update a list of tasks
 
-/api/user/todo/{id} - update a specific task
+/api/todo/{id} - update a specific task
 
 DELETE:
 
-/api/user/todo/{id} - delete a specific task
+/api/todo/{id} - delete a specific task
 
 ***
 _users_:
@@ -43,6 +53,8 @@ POST:
 
 /api/user/auth/refresh - refresh access token
 
+/api/user/logout - delete all refresh tokens
+
 **Features**
 1. Add, edit, and delete tasks
 2. Tasks filtering by status
@@ -56,8 +68,9 @@ POST:
 2. Open the project folder in your code editor.
 3. Install dependecies
 4. Install PostgreSQL Server
-5. Execute scripts from _models/models.db_
-6. Set secret data into _.env_ file
+5. Create _todoDB_ database
+6. Download _.env_ and _ormconfig.json_ files
+7. Execute command in terminal - _npx typeorm migration:run_
 
 **Usage**
 

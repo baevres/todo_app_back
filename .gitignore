@@ -1,3 +1,4 @@
 node_modules
 .env
-models/models.db
+ormconfig.json
+src/entities/models.db
