@@ -80,6 +80,7 @@ const editManyTodosSchema = {
         properties: {
           id: { type: 'integer' },
           checked: { type: 'boolean' },
+          task_list_id: { type: 'integer' },
         },
       },
     },

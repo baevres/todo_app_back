@@ -1,7 +1,7 @@
 import { EntitySchema } from 'typeorm'
 
-const userEntity = new EntitySchema({
-  name: 'User',
+const usersEntity = new EntitySchema({
+  name: 'Users',
   tableName: 'users',
   columns: {
     id: {
@@ -43,19 +43,19 @@ const userEntity = new EntitySchema({
     },
   },
   relations: {
-    tasks: {
-      target: 'Task',
+    boards: {
+      target: 'Boards',
       type: 'one-to-many',
-      mappedBy: 'user',
+      mappedBy: 'users',
       cascade: true,
     },
     tokens: {
-      target: 'Token',
+      target: 'Tokens',
       type: 'one-to-many',
-      mappedBy: 'user',
+      mappedBy: 'users',
       cascade: true,
     },
   },
 })
 
-export default userEntity
+export default usersEntity

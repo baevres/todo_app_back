@@ -1,7 +1,7 @@
 import { EntitySchema } from 'typeorm'
 
-const taskEntity = new EntitySchema({
-  name: 'Task',
+const tasksEntity = new EntitySchema({
+  name: 'Tasks',
   tableName: 'tasks',
   columns: {
     id: {
@@ -15,18 +15,18 @@ const taskEntity = new EntitySchema({
     checked: {
       type: 'boolean',
     },
-    userid: {
+    task_list_id: {
       type: 'int',
       generatedType: 'STORED',
     },
   },
   relations: {
-    users: {
-      target: 'User',
-      joinColumn: { name: 'userid', referencedColumnName: 'id' },
+    task_lists: {
+      target: 'TaskLists',
+      joinColumn: { name: 'task_list_id', referencedColumnName: 'id' },
       type: 'many-to-one',
     },
   },
 })
 
-export default taskEntity
+export default tasksEntity

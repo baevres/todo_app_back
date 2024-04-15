@@ -1,8 +1,11 @@
-import userEntity from '../entities/usersEntity.js'
+import { Brackets } from 'typeorm'
+
+import usersEntity from '../entities/usersEntity.js'
 import tokensEntity from '../entities/tokensEntity.js'
 
+import checkTokenAndGetId from '../utils/checkToken.js'
 import successResponse from '../utils/successResponses.js'
-import { unauthorized, notFound } from '../utils/errorResponses.js'
+import { unauthorized, notFound, badRequest } from '../utils/errorResponses.js'
 import {
   createHashedPassword,
   generateHashedPassword,
@@ -20,7 +23,7 @@ import {
 } from '../schemas/userSchema.js'
 
 const usersController = (fastify, options, done) => {
-  const userRepository = fastify.orm.getRepository(userEntity)
+  const usersRepository = fastify.orm.getRepository(usersEntity)
   const tokensRepository = fastify.orm.getRepository(tokensEntity)
 
   fastify.get('/', { schema: getUserByQuerySchema }, async (req, reply) => {
@@ -30,14 +33,14 @@ const usersController = (fastify, options, done) => {
     let user
     if (queryParams) {
       if (queryParams.email) {
-        user = await userRepository.findOne({
+        user = await usersRepository.findOne({
           select: ['email'],
           where: {
             email: queryParams.email,
           },
         })
       } else if (queryParams.login) {
-        user = await userRepository.findOne({
+        user = await usersRepository.findOne({
           select: ['login'],
           where: {
             login: queryParams.login,
@@ -53,7 +56,7 @@ const usersController = (fastify, options, done) => {
     const headers = req.resHeaders
     const userId = req.params.id
 
-    const user = await userRepository.find({
+    const user = await usersRepository.find({
       select: ['id', 'email', 'name'],
       where: {
         id: userId,
@@ -65,13 +68,40 @@ const usersController = (fastify, options, done) => {
     return successResponse(reply, 200, headers, user)
   })
 
+  fastify.get('/user-data', async (req, reply) => {
+    const headers = req.resHeaders
+    const userId = checkTokenAndGetId(req.headers)
+    const queryParams = req.query
+
+    const queryBuilder = await usersRepository
+      .createQueryBuilder('users')
+      .select(['users.id', 'users.email', 'users.name'])
+      .where('users.id = :userId', { userId })
+
+    if (queryParams.email && queryParams.name) {
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('users.email = :email', {
+            email: queryParams.email,
+          }).orWhere('users.name = :name', {
+            name: queryParams.name,
+          })
+        }),
+      )
+    }
+
+    const user = await queryBuilder.orderBy('users.id', 'ASC').getMany()
+
+    return successResponse(reply, 200, headers, user)
+  })
+
   fastify.post('/create', { schema: createUserSchema }, async (req, reply) => {
     const headers = req.resHeaders
 
     const { name, age, link, gender, phone, login, email, password } = req.body
     const { hashedPassword, salt } = createHashedPassword(password)
 
-    const newUser = await userRepository.create({
+    const newUser = await usersRepository.create({
       name,
       age,
       link,
@@ -82,7 +112,7 @@ const usersController = (fastify, options, done) => {
       password: hashedPassword,
       salt,
     })
-    const user = await userRepository.save(newUser)
+    const user = await usersRepository.save(newUser)
     const data = [{ id: user.id }]
 
     return successResponse(reply, 201, headers, data)
@@ -92,7 +122,7 @@ const usersController = (fastify, options, done) => {
     const headers = req.resHeaders
     const { email, password } = req.body
 
-    const user = await userRepository.find({
+    const user = await usersRepository.find({
       select: ['id', 'name', 'email', 'password', 'salt'],
       where: {
         email,
@@ -123,11 +153,12 @@ const usersController = (fastify, options, done) => {
       ]
       await tokensRepository.insert({
         token: tokens.refreshToken,
-        userid: user[0].id,
+        user_id: user[0].id,
       })
 
       return successResponse(reply, 200, newHeaders, data)
     }
+    return notFound(reply, req.resHeaders, 'Invalid login or password')
   })
 
   fastify.post(
@@ -145,7 +176,7 @@ const usersController = (fastify, options, done) => {
         const tokensFromDB = await tokensRepository.find({
           select: ['token'],
           where: {
-            userid: userData.id,
+            user_id: userData.id,
           },
         })
         const matchedToken = tokensFromDB.filter(
@@ -159,7 +190,7 @@ const usersController = (fastify, options, done) => {
         const tokens = generateNewTokens(userData)
         await tokensRepository.insert({
           token: tokens.refreshToken,
-          userid: userData.id,
+          user_id: userData.id,
         })
 
         const newHeaders = {
@@ -190,7 +221,7 @@ const usersController = (fastify, options, done) => {
       const tokens = await tokensRepository.find({
         select: ['id'],
         where: {
-          userid: userData.id,
+          user_id: userData.id,
         },
       })
       const tokensLength = tokens.length

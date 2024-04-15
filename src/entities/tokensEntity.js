@@ -1,7 +1,7 @@
 import { EntitySchema } from 'typeorm'
 
 const tokensEntity = new EntitySchema({
-  name: 'Token',
+  name: 'Tokens',
   tableName: 'tokens',
   columns: {
     id: {
@@ -13,15 +13,15 @@ const tokensEntity = new EntitySchema({
       type: 'text',
       unique: true,
     },
-    userid: {
+    user_id: {
       type: 'int',
       generatedType: 'STORED',
     },
   },
   relations: {
     users: {
-      target: 'User',
-      joinColumn: { name: 'userid', referencedColumnName: 'id' },
+      target: 'Users',
+      joinColumn: { name: 'user_id', referencedColumnName: 'id' },
       type: 'many-to-one',
     },
   },
