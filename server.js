@@ -1,15 +1,18 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
 import fastifyTypeorm from 'fastify-typeorm-plugin'
+import { QueryFailedError } from 'typeorm'
 
 import usersEntity from './src/entities/usersEntity.js'
 import tasksEntity from './src/entities/tasksEntity.js'
 import tokensEntity from './src/entities/tokensEntity.js'
 import boardsEntity from './src/entities/boardsEntity.js'
 import taskListsEntity from './src/entities/taskListsEntity.js'
+// import sharedBoardsEntity from './src/entities/sharedBoardsEntity.js'
 
 import usersController from './src/controllers/usersController.js'
 import boardsConroller from './src/controllers/boardsConroller.js'
+import sharedBoardsController from './src/controllers/sharedBoardsController.js'
 
 import successResponse from './src/utils/successResponses.js'
 import { badRequest, unauthorized } from './src/utils/errorResponses.js'
@@ -27,13 +30,7 @@ fastify.register(fastifyTypeorm, {
   port: 5050,
   database: process.env.POSTGRES_CLIENT_DATABASE,
   password: process.env.POSTGRES_CLIENT_PASSWORD,
-  entities: [
-    usersEntity,
-    tasksEntity,
-    tokensEntity,
-    boardsEntity,
-    taskListsEntity,
-  ],
+  entities: ['./src/entities/**/*.js'],
   migrations: ['./src/migrations'],
   logging: false,
 })
@@ -82,6 +79,7 @@ fastify.setErrorHandler((error, req, reply) => {
 
 fastify.register(usersController, { prefix: '/api/user' })
 fastify.register(boardsConroller, { prefix: '/api/board' })
+fastify.register(sharedBoardsController, { prefix: '/api/shared-board' })
 
 fastify.listen({ port }, function (err, address) {
   if (err) {

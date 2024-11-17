@@ -4,16 +4,19 @@ import tasksEntity from '../entities/tasksEntity.js'
 import taskListsController from './taskListsController.js'
 
 import successResponse from '../utils/successResponses.js'
-import { unauthorized, notFound, badRequest } from '../utils/errorResponses.js'
+import { badRequest } from '../utils/errorResponses.js'
+import checkOwnerOrInvitedUser from '../utils/checkOwnerOrInvitedUser.js'
 
 const boardsController = (fastify, options, done) => {
   const boardsRepository = fastify.orm.getRepository(boardsEntity)
   const taskRepository = fastify.orm.getRepository(tasksEntity)
+  const dataSource = fastify.orm
 
   fastify.register(taskListsController, {
     prefix: '/:boardId/task-list',
   })
 
+  // GET
   fastify.get('/', async (req, reply) => {
     const userId = req.userId
     const headers = req.resHeaders
@@ -36,18 +39,48 @@ const boardsController = (fastify, options, done) => {
     const userId = req.userId
     const headers = req.resHeaders
 
-    const boards = await boardsRepository.find({
-      select: ['id', 'title'],
-      where: {
-        id: boardId,
-        user_id: userId,
-      },
-    })
+    const boards = await boardsRepository
+      .createQueryBuilder('boards')
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .leftJoin('boards.users', 'users')
+      .select([
+        'boards.id',
+        'boards.title',
+        'boards.user_id',
+        'users.id',
+        'users.name',
+        'users.email',
+      ])
+      .where('boards.id = :boardId', { boardId })
+      .andWhere(checkOwnerOrInvitedUser(userId))
+      .orderBy('boards.id', 'ASC')
+      .getMany()
 
     return successResponse(reply, 200, headers, boards)
   })
 
-  fastify.get('/:id/board-tasks', async (req, reply) => {
+  fastify.get('/:id/invited-users', async (req, reply) => {
+    const boardId = req.params.id
+    const userId = req.userId
+    const headers = req.resHeaders
+
+    const boards = await boardsRepository
+      .createQueryBuilder('boards')
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .select([
+        'boards.id',
+        'boards.title',
+        'shared_boards.id',
+        'shared_boards.email',
+        'shared_boards.name',
+      ])
+      .where('boards.id = :boardId', { boardId })
+      .getMany()
+
+    return successResponse(reply, 200, headers, boards)
+  })
+
+  fastify.get('/:id/board-task', async (req, reply) => {
     const boardId = req.params.id
     const userId = req.userId
     const headers = req.resHeaders
@@ -63,9 +96,9 @@ const boardsController = (fastify, options, done) => {
       ])
       .innerJoin('tasks.task_lists', 'task_lists')
       .innerJoin('task_lists.boards', 'boards')
-      .innerJoin('boards.users', 'users')
       .where('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
 
     if (queryParams.checked != undefined) {
       queryBuilder.andWhere('tasks.checked = :checked', {
@@ -78,7 +111,7 @@ const boardsController = (fastify, options, done) => {
     return successResponse(reply, 200, headers, tasks)
   })
 
-  // post
+  // POST
   fastify.post('/', async (req, reply) => {
     const headers = req.resHeaders
     const userId = req.userId
@@ -99,7 +132,7 @@ const boardsController = (fastify, options, done) => {
     return successResponse(reply, 201, headers, data)
   })
 
-  // put
+  // PUT
   fastify.put('/:id', async (req, reply) => {
     const headers = req.resHeaders
     const boardId = req.params.id
@@ -108,28 +141,37 @@ const boardsController = (fastify, options, done) => {
     const { id, title, closed } = req.body
     if (boardId != id) return badRequest(reply, headers, null)
 
-    await boardsRepository.update(
-      {
-        id,
-        user_id: userId,
-      },
-      {
-        title,
-        closed,
-      },
-    )
-    const boards = await boardsRepository.find({
+    const boards = await boardsRepository
+      .createQueryBuilder('boards')
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .select(['boards.id', 'boards.title'])
+      .where('boards.id = :boardId', { boardId })
+      .andWhere(checkOwnerOrInvitedUser(userId))
+      .getMany()
+
+    if (boards.length === 0) {
+      return badRequest(reply, headers, null)
+    }
+
+    const queryBuilder = await dataSource
+      .createQueryBuilder()
+      .update(boardsEntity)
+      .set({ title, closed })
+      .where('id = :id', { id })
+
+    await queryBuilder.execute()
+
+    const updatedBoards = await boardsRepository.find({
       select: ['id', 'title', 'closed'],
       where: {
         id,
-        user_id: userId,
       },
     })
 
-    return successResponse(reply, 200, headers, boards)
+    return successResponse(reply, 200, headers, updatedBoards)
   })
 
-  // delete
+  // DELETE
   fastify.delete('/:id', async (req, reply) => {
     const headers = req.resHeaders
     const boardId = req.params.id

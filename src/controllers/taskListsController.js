@@ -5,6 +5,7 @@ import tasksController from './tasksController.js'
 
 import successResponse from '../utils/successResponses.js'
 import { unauthorized, notFound, badRequest } from '../utils/errorResponses.js'
+import checkOwnerOrInvitedUser from '../utils/checkOwnerOrInvitedUser.js'
 
 const taskListsController = (fastify, options, done) => {
   const taskListsRepository = fastify.orm.getRepository(taskListsEntity)
@@ -13,6 +14,19 @@ const taskListsController = (fastify, options, done) => {
   fastify.register(tasksController, {
     prefix: '/:taskListId/task',
   })
+
+  // GET
+  const getBoards = async (boardId, userId) => {
+    const boards = await boardsRepository
+      .createQueryBuilder('boards')
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .select(['boards.id', 'boards.title'])
+      .where('boards.id = :boardId', { boardId })
+      .andWhere(checkOwnerOrInvitedUser(userId))
+      .getMany()
+
+    return boards
+  }
 
   fastify.get('/', async (req, reply) => {
     const userId = req.userId
@@ -25,7 +39,8 @@ const taskListsController = (fastify, options, done) => {
       .innerJoin('task_lists.boards', 'boards')
       .innerJoin('boards.users', 'users')
       .where('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
       .orderBy('task_lists.id', 'ASC')
       .getMany()
 
@@ -45,29 +60,25 @@ const taskListsController = (fastify, options, done) => {
       .innerJoin('boards.users', 'users')
       .where('task_lists.id = :taskListId', { taskListId })
       .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
       .orderBy('task_lists.id', 'ASC')
       .getMany()
 
     return successResponse(reply, 200, headers, taskLists)
   })
 
-  // post
+  // POST
   fastify.post('/', async (req, reply) => {
     const userId = req.userId
     const boardId = req.params.boardId
     const headers = req.resHeaders
 
-    const board = await boardsRepository
-      .createQueryBuilder('boards')
-      .select(['boards.title'])
-      .where('boards.id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .getMany()
-
-    if (board.length === 0) {
+    const boards = await getBoards(boardId, userId)
+    if (boards.length === 0) {
       return badRequest(reply, headers, null)
     }
+
     const { title } = req.body
     const newTaskList = await taskListsRepository.create({
       title,
@@ -84,21 +95,15 @@ const taskListsController = (fastify, options, done) => {
     return successResponse(reply, 201, headers, data)
   })
 
-  // put
+  // PUT
   fastify.put('/:id', async (req, reply) => {
     const userId = req.userId
     const boardId = req.params.boardId
     const headers = req.resHeaders
     const taskListId = req.params.id
 
-    const board = await boardsRepository
-      .createQueryBuilder('boards')
-      .select(['boards.title'])
-      .where('boards.id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .getMany()
-
-    if (board.length === 0) {
+    const boards = await getBoards(boardId, userId)
+    if (boards.length === 0) {
       return badRequest(reply, headers, null)
     }
 
@@ -126,21 +131,15 @@ const taskListsController = (fastify, options, done) => {
     return successResponse(reply, 200, headers, taskLists)
   })
 
-  // delete
+  // DELETE
   fastify.delete('/:id', async (req, reply) => {
     const userId = req.userId
     const boardId = req.params.boardId
     const headers = req.resHeaders
     const taskListId = req.params.id
 
-    const board = await boardsRepository
-      .createQueryBuilder('boards')
-      .select(['boards.title'])
-      .where('boards.id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .getMany()
-
-    if (board.length === 0) {
+    const boards = await getBoards(boardId, userId)
+    if (boards.length === 0) {
       return badRequest(reply, headers, null)
     }
 

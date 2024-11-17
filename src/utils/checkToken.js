@@ -38,10 +38,10 @@ const generateNewTokens = (userData) => {
   const secretKey = process.env.SECRET_KEY
   const refreshSecretKey = process.env.REFRESH_SECRET_KEY
   const accessToken = jwt.sign({ userId: id, name }, secretKey, {
-    expiresIn: '1h',
+    expiresIn: '10s',
   })
   const refreshToken = jwt.sign({ userId: id, name }, refreshSecretKey, {
-    expiresIn: '7d',
+    expiresIn: '5m',
   })
 
   return { accessToken, refreshToken }

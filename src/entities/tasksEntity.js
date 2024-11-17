@@ -8,16 +8,21 @@ const tasksEntity = new EntitySchema({
       primary: true,
       type: 'int',
       generated: true,
+      nullable: false,
     },
     title: {
-      type: 'varchar',
+      type: 'text',
+      nullable: false,
     },
     checked: {
       type: 'boolean',
+      default: false,
+      nullable: false,
     },
     task_list_id: {
       type: 'int',
       generatedType: 'STORED',
+      nullable: false,
     },
   },
   relations: {
@@ -25,6 +30,8 @@ const tasksEntity = new EntitySchema({
       target: 'TaskLists',
       joinColumn: { name: 'task_list_id', referencedColumnName: 'id' },
       type: 'many-to-one',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
     },
   },
 })

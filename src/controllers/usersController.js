@@ -70,16 +70,24 @@ const usersController = (fastify, options, done) => {
 
   fastify.get('/user-data', async (req, reply) => {
     const headers = req.resHeaders
-    const userId = checkTokenAndGetId(req.headers)
     const queryParams = req.query
+    let userId
+    try {
+      userId = checkTokenAndGetId(req.headers)
+    } catch (err) {
+      return unauthorized(
+        reply,
+        req.resHeaders,
+        'Token is invalid or not found',
+      )
+    }
 
     const queryBuilder = await usersRepository
       .createQueryBuilder('users')
       .select(['users.id', 'users.email', 'users.name'])
-      .where('users.id = :userId', { userId })
 
     if (queryParams.email && queryParams.name) {
-      queryBuilder.andWhere(
+      queryBuilder.where(
         new Brackets((qb) => {
           qb.where('users.email = :email', {
             email: queryParams.email,
@@ -88,6 +96,8 @@ const usersController = (fastify, options, done) => {
           })
         }),
       )
+    } else {
+      queryBuilder.where('users.id = :userId', { userId })
     }
 
     const user = await queryBuilder.orderBy('users.id', 'ASC').getMany()

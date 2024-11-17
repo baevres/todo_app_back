@@ -1,16 +1,16 @@
-// import { DataSource } from 'typeorm'
-// import userEntity from './entities/usersEntity.js'
-// import taskEntity from './entities/tasksEntity.js'
+import { DataSource } from 'typeorm'
 
-// const AppDataSource = new DataSource({
-//   type: 'postgres',
-//   user: 'postgres',
-//   host: 'localhost',
-//   database: process.env.POSTGRES_CLIENT_DATABASE,
-//   password: process.env.POSTGRES_CLIENT_PASSWORD,
-//   port: 5050,
-//   entities: [userEntity, taskEntity],
-//   logging: true,
-// })
+const AppDataSource = new DataSource({
+  type: 'postgres',
+  user: 'postgres',
+  host: 'localhost',
+  database: 'todoDB',
+  password: '1234567890',
+  port: 5050,
+  entities: ['./src/entities/**/*.js'],
+  migrations: ['./src/migrations/**/*.js'],
+  migrationsTableName: 'AddManyToMany',
+  logging: false,
+})
 
-// export default AppDataSource
+export default AppDataSource

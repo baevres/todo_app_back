@@ -3,6 +3,7 @@ import taskListsEntity from '../entities/taskListsEntity.js'
 
 import successResponse from '../utils/successResponses.js'
 import { badRequest } from '../utils/errorResponses.js'
+import checkOwnerOrInvitedUser from '../utils/checkOwnerOrInvitedUser.js'
 
 import {
   getTodosSchema,
@@ -16,7 +17,23 @@ const tasksController = (fastify, options, done) => {
   const taskRepository = fastify.orm.getRepository(tasksEntity)
   const taskListsRepository = fastify.orm.getRepository(taskListsEntity)
 
-  // get
+  // GET
+  const getTaskLists = async (taskListId, boardId, userId) => {
+    const taskLists = await taskListsRepository
+      .createQueryBuilder('task_lists')
+      .select(['task_lists.id', 'task_lists.title'])
+      .innerJoin('task_lists.boards', 'boards')
+      .innerJoin('boards.users', 'users')
+      .where('task_lists.id = :taskListId', { taskListId })
+      .andWhere('task_lists.board_id = :boardId', { boardId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
+      .orderBy('task_lists.id', 'ASC')
+      .getMany()
+
+    return taskLists
+  }
+
   fastify.get('/', { schema: getTodosSchema }, async (req, reply) => {
     const headers = req.resHeaders
     const userId = req.userId
@@ -37,7 +54,8 @@ const tasksController = (fastify, options, done) => {
       .innerJoin('boards.users', 'users')
       .where('tasks.task_list_id = :taskListId', { taskListId })
       .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
 
     if (queryParams.checked != undefined) {
       queryBuilder.andWhere('tasks.checked = :checked', {
@@ -71,31 +89,22 @@ const tasksController = (fastify, options, done) => {
       .where('tasks.id = :taskId', { taskId })
       .andWhere('tasks.task_list_id = :taskListId', { taskListId })
       .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
+      .leftJoin('boards.invited_users', 'shared_boards')
+      .andWhere(checkOwnerOrInvitedUser(userId))
       .orderBy('tasks.id', 'ASC')
       .getMany()
 
     return successResponse(reply, 200, headers, tasks)
   })
 
-  // post
+  // POST
   fastify.post('/', { schema: createTodoSchema }, async (req, reply) => {
     const headers = req.resHeaders
     const userId = req.userId
     const boardId = req.params.boardId
     const taskListId = req.params.taskListId
 
-    const taskLists = await taskListsRepository
-      .createQueryBuilder('task_lists')
-      .select(['task_lists.id', 'task_lists.title'])
-      .innerJoin('task_lists.boards', 'boards')
-      .innerJoin('boards.users', 'users')
-      .where('task_lists.id = :taskListId', { taskListId })
-      .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .orderBy('task_lists.id', 'ASC')
-      .getMany()
-
+    const taskLists = await getTaskLists(taskListId, boardId, userId)
     if (taskLists.length === 0) {
       return badRequest(reply, headers, null)
     }
@@ -119,24 +128,14 @@ const tasksController = (fastify, options, done) => {
     return successResponse(reply, 201, headers, data)
   })
 
-  // put
+  // PUT
   fastify.put('/', { schema: editManyTodosSchema }, async (req, reply) => {
     const headers = req.resHeaders
     const userId = req.userId
     const boardId = req.params.boardId
     const taskListId = req.params.taskListId
 
-    const taskLists = await taskListsRepository
-      .createQueryBuilder('task_lists')
-      .select(['task_lists.id', 'task_lists.title'])
-      .innerJoin('task_lists.boards', 'boards')
-      .innerJoin('boards.users', 'users')
-      .where('task_lists.id = :taskListId', { taskListId })
-      .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .orderBy('task_lists.id', 'ASC')
-      .getMany()
-
+    const taskLists = await getTaskLists(taskListId, boardId, userId)
     if (taskLists.length === 0) {
       return badRequest(reply, headers, null)
     }
@@ -181,17 +180,7 @@ const tasksController = (fastify, options, done) => {
       const taskListId = req.params.taskListId
       const taskId = req.params.id
 
-      const taskLists = await taskListsRepository
-        .createQueryBuilder('task_lists')
-        .select(['task_lists.id', 'task_lists.title'])
-        .innerJoin('task_lists.boards', 'boards')
-        .innerJoin('boards.users', 'users')
-        .where('task_lists.id = :taskListId', { taskListId })
-        .andWhere('task_lists.board_id = :boardId', { boardId })
-        .andWhere('boards.user_id = :userId', { userId })
-        .orderBy('task_lists.id', 'ASC')
-        .getMany()
-
+      const taskLists = await getTaskLists(taskListId, boardId, userId)
       if (taskLists.length === 0) {
         return badRequest(reply, headers, null)
       }
@@ -221,24 +210,14 @@ const tasksController = (fastify, options, done) => {
     },
   )
 
-  // delete
+  // DELETE
   fastify.delete('/', async (req, reply) => {
     const headers = req.resHeaders
     const userId = req.userId
     const boardId = req.params.boardId
     const taskListId = req.params.taskListId
 
-    const taskLists = await taskListsRepository
-      .createQueryBuilder('task_lists')
-      .select(['task_lists.id', 'task_lists.title'])
-      .innerJoin('task_lists.boards', 'boards')
-      .innerJoin('boards.users', 'users')
-      .where('task_lists.id = :taskListId', { taskListId })
-      .andWhere('task_lists.board_id = :boardId', { boardId })
-      .andWhere('boards.user_id = :userId', { userId })
-      .orderBy('task_lists.id', 'ASC')
-      .getMany()
-
+    const taskLists = await getTaskLists(taskListId, boardId, userId)
     if (taskLists.length === 0) {
       return badRequest(reply, headers, null)
     }
@@ -264,17 +243,7 @@ const tasksController = (fastify, options, done) => {
       const taskListId = req.params.taskListId
       const taskId = req.params.id
 
-      const taskLists = await taskListsRepository
-        .createQueryBuilder('task_lists')
-        .select(['task_lists.id', 'task_lists.title'])
-        .innerJoin('task_lists.boards', 'boards')
-        .innerJoin('boards.users', 'users')
-        .where('task_lists.id = :taskListId', { taskListId })
-        .andWhere('task_lists.board_id = :boardId', { boardId })
-        .andWhere('boards.user_id = :userId', { userId })
-        .orderBy('task_lists.id', 'ASC')
-        .getMany()
-
+      const taskLists = await getTaskLists(taskListId, boardId, userId)
       if (taskLists.length === 0) {
         return badRequest(reply, headers, null)
       }
